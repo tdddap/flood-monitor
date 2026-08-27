@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบเฝ้าระวังและเตือนภัยน้ำท่วม - สีกุก</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --accent: #38bdf8;
+      --safe: #22c55e;
+      --warn: #eab308;
+      --danger: #ef4444;
+      --border-color: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Sarabun', sans-serif, system-ui; }
+    body { background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; padding: 16px 12px; min-height: 100vh; }
+    .container { width: 100%; max-width: 480px; }
+    
+    .header { text-align: center; margin-bottom: 16px; }
+    .header h1 { font-size: 1.25rem; color: var(--accent); margin-bottom: 4px; }
+    .header p { font-size: 0.8rem; color: var(--text-sub); }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border-color);
+    }
+    
+    .card-center { text-align: center; }
+    .val-label { font-size: 0.85rem; color: var(--text-sub); margin-bottom: 4px; }
+    .val-display { font-size: 2.8rem; font-weight: bold; line-height: 1.1; }
+    .val-unit { font-size: 0.95rem; color: var(--text-sub); }
+
+    .status-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 10px;
+      background: #334155;
+    }
+    .status-safe { background: rgba(34, 197, 94, 0.15); color: var(--safe); border: 1px solid var(--safe); }
+    .status-warn { background: rgba(234, 179, 8, 0.15); color: var(--warn); border: 1px solid var(--warn); }
+    .status-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .sub-val { font-size: 1.5rem; font-weight: bold; margin: 4px 0; text-align: center; }
+
+    #map {
+      height: 180px;
+      width: 100%;
+      border-radius: 10px;
+      margin-top: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .chart-container {
+      position: relative;
+      height: 160px;
+      width: 100%;
+      margin-top: 6px;
+    }
+
+    .footer { text-align: center; font-size: 0.75rem; color: var(--text-sub); margin-top: 12px; }
+    .live-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: var(--safe);
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>📡 ระบบเฝ้าระวังระดับน้ำชุมชน</h1>
+    <p>จุดตรวจวัด: แม่น้ำสีกุก (ตลิ่งสูง 4.14 ม.)</p>
+  </div>
+
+  <!-- การ์ดหลัก: ความลึกระดับน้ำ (V1) + ข้อความสถานะ (V3) -->
+  <div class="card card-center">
+    <div class="val-label">ระดับน้ำจากท้องน้ำ (V1)</div>
+    <div class="val-display" id="depthVal">--</div>
+    <span class="val-unit">เมตร (m)</span>
+    <br>
+    <div class="status-badge" id="statusBadge">กำลังเชื่อมต่อระบบ...</div>
+  </div>
+
+  <!-- กราฟแนวโน้มระดับน้ำ Real-time -->
+  <div class="card">
+    <div class="val-label">📈 กราฟระดับน้ำล่าสุด (เมตร)</div>
+    <div class="chart-container">
+      <canvas id="historyChart"></canvas>
+    </div>
+  </div>
+
+  <!-- การ์ดคู่: ระยะก่อนล้นตลิ่ง (V2) & ระยะหัวเซนเซอร์ (V0) -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="val-label" style="text-align: center;">เหลืออีกก่อนล้นตลิ่ง (V2)</div>
+      <div class="sub-val" id="freeboardVal">--</div>
+      <div class="val-unit" style="text-align: center;">เมตร</div>
+    </div>
+    <div class="card">
+      <div class="val-label" style="text-align: center;">ระยะจากเซนเซอร์ (V0)</div>
+      <div class="sub-val" id="distVal">--</div>
+      <div class="val-unit" style="text-align: center;">เมตร</div>
+    </div>
+  </div>
+
+  <!-- แผนที่พิกัดจุดติดตั้ง -->
+  <div class="card">
+    <div class="val-label">📍 พิกัดสถานีตรวจวัด (คลองสีกุก)</div>
+    <div id="map"></div>
+  </div>
+
+  <div class="footer">
+    <p><span class="live-dot"></span>ดึงข้อมูลอัตโนมัติทุก 10 วินาที</p>
+    <p id="updateTime" style="margin-top: 4px;">อัปเดตล่าสุด: --:--:--</p>
+  </div>
+</div>
+
+<script>
+  // ตั้งค่า Token และ Server ตามข้อมูลในโปรเจกต์
+  const BLYNK_AUTH_TOKEN = "V22DKxdR92R3Vpk8vagf9EPPaQ-GUxxh";
+  const BLYNK_SERVER = "https://blynk.cloud/external/api/get";
+
+  // พิกัดจุดติดตั้ง (บริเวณสีกุก พระนครศรีอยุธยา)
+  const DEVICE_LAT = 14.3685;
+  const DEVICE_LNG = 100.5283;
+
+  // --- แผนที่ Leaflet ---
+  const map = L.map('map', { zoomControl: false }).setView([DEVICE_LAT, DEVICE_LNG], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  const marker = L.marker([DEVICE_LAT, DEVICE_LNG]).addTo(map);
+  marker.bindPopup("<b>จุดวัดระดับน้ำสีกุก</b><br>สถานะ: ออนไลน์").openPopup();
+
+  // --- กราฟ Chart.js ---
+  const ctx = document.getElementById('historyChart').getContext('2d');
+  const chartData = {
+    labels: [],
+    datasets: [{
+      label: 'ระดับน้ำ (m)',
+      data: [],
+      borderColor: '#38bdf8',
+      backgroundColor: 'rgba(56, 189, 248, 0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 3
+    }]
+  };
+
+  const historyChart = new Chart(ctx, {
+    type: 'line',
+    data: chartData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+        y: { 
+          min: 0, 
+          max: 5.5,
+          grid: { color: '#334155' }, 
+          ticks: { color: '#94a3b8', font: { size: 10 } } 
+        }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  async function fetchBlynkPin(pin) {
+    try {
+      const response = await fetch(`${BLYNK_SERVER}?token=${BLYNK_AUTH_TOKEN}&${pin}`);
+      if (!response.ok) throw new Error('API Error');
+      return await response.text();
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async function updateDashboard() {
+    const dist = await fetchBlynkPin('v0');      // Distance
+    const depth = await fetchBlynkPin('v1');     // Depth
+    const freeboard = await fetchBlynkPin('v2'); // Freeboard
+    const status = await fetchBlynkPin('v3');    // Status Text
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    if (depth !== null) {
+      const depthVal = parseFloat(depth);
+      document.getElementById('depthVal').innerText = isNaN(depthVal) ? depth : depthVal.toFixed(2);
+
+      // จัดการสีกรอบสถานะ
+      const badge = document.getElementById('statusBadge');
+      if (status !== null) {
+        badge.innerText = status.replace(/"/g, '');
+        if (status.includes('ปกติ') || status.includes('ปลอดภัย')) {
+          badge.className = "status-badge status-safe";
+        } else if (status.includes('เฝ้าระวัง')) {
+          badge.className = "status-badge status-warn";
+        } else {
+          badge.className = "status-badge status-danger";
+        }
+      }
+
+      // วาดกราฟ
+      if (!isNaN(depthVal)) {
+        chartData.labels.push(timeStr);
+        chartData.datasets[0].data.push(depthVal);
+        if (chartData.labels.length > 12) {
+          chartData.labels.shift();
+          chartData.datasets[0].data.shift();
+        }
+        historyChart.update();
+      }
+    }
+
+    if (freeboard !== null) {
+      const fbVal = parseFloat(freeboard);
+      document.getElementById('freeboardVal').innerText = isNaN(fbVal) ? freeboard : fbVal.toFixed(2);
+    }
+
+    if (dist !== null) {
+      const dVal = parseFloat(dist);
+      document.getElementById('distVal').innerText = isNaN(dVal) ? dist : dVal.toFixed(2);
+    }
+
+    document.getElementById('updateTime').innerText = `อัปเดตล่าสุด: ${timeStr}`;
+  }
+
+  updateDashboard();
+  setInterval(updateDashboard, 10000); // อัปเดตทุก 10 วินาที
+</script>
+
+</body>
+</html>
