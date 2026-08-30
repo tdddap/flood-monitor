@@ -94,7 +94,8 @@
       margin-top: 6px;
     }
 
-    .footer { text-align: center; font-size: 0.75rem; color: var(--text-sub); margin-top: 12px; }
+    /* Footer & เครดิต */
+    .footer { text-align: center; font-size: 0.75rem; color: var(--text-sub); margin-top: 14px; }
     .live-dot {
       display: inline-block;
       width: 8px;
@@ -105,11 +106,34 @@
       animation: pulse 1.5s infinite;
     }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .credit-box {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-color);
+      line-height: 1.6;
+    }
+    .credit-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 4px;
+    }
+    .credit-names {
+      font-size: 0.75rem;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+    .credit-faculty {
+      font-size: 0.72rem;
+      color: var(--text-sub);
+    }
   </style>
 </head>
 <body>
 
 <div class="container">
+  <!-- ส่วนหัวและตราสัญลักษณ์ -->
   <div class="header">
     <div class="logo-container">
       <img src="logo-tu.png" alt="ตรามหาวิทยาลัยธรรมศาสตร์" class="logo-img">
@@ -157,9 +181,23 @@
     <div id="map"></div>
   </div>
 
+  <!-- ส่วนท้ายหน้าเว็บและเครดิตทีมผู้วิจัย -->
   <div class="footer">
     <p><span class="live-dot"></span>ดึงข้อมูลอัตโนมัติทุก 10 วินาที</p>
     <p id="updateTime" style="margin-top: 4px;">อัปเดตล่าสุด: --:--:--</p>
+
+    <div class="credit-box">
+      <div class="credit-title">คณะผู้จัดทำ / คณะผู้วิจัย:</div>
+      <div class="credit-names">
+        Ms. Nuengrurthai Churthai<br>
+        Ms. Ananya Srichai<br>
+        Ms. Supitchaya Santidumrongpun
+      </div>
+      <div class="credit-faculty">
+        สาขาวิชาเทคโนโลยีเพื่อการพัฒนาอย่างยั่งยืน<br>
+        คณะวิทยาศาสตร์และเทคโนโลยี มหาวิทยาลัยธรรมศาสตร์
+      </div>
+    </div>
   </div>
 </div>
 
@@ -167,10 +205,11 @@
   const BLYNK_AUTH_TOKEN = "V22DKxdR92R3Vpk8vagf9EPPaQ-GUxxh";
   const BLYNK_SERVER = "https://blynk.cloud/external/api/get";
 
+  // พิกัดจุดติดตั้งบริเวณวัดสีกุก / สภ.พระขาว
   const DEVICE_LAT = 14.328386;
   const DEVICE_LNG = 100.449998;
 
-  // แผนที่ Leaflet
+  // --- แผนที่ Leaflet ---
   const map = L.map('map', { zoomControl: false }).setView([DEVICE_LAT, DEVICE_LNG], 14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
@@ -179,7 +218,7 @@
   const marker = L.marker([DEVICE_LAT, DEVICE_LNG]).addTo(map);
   marker.bindPopup("<b>จุดวัดระดับน้ำสีกุก</b><br>สถานะ: ออนไลน์").openPopup();
 
-  // กราฟ Chart.js
+  // --- กราฟ Chart.js ---
   const ctx = document.getElementById('historyChart').getContext('2d');
   const chartData = {
     labels: [],
